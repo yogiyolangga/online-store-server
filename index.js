@@ -370,6 +370,20 @@ app.get("/api/client/checkstore/:username", (req, res) => {
   });
 });
 
+// Client Get Data Store
+app.get("/api/client/getstore/:username", (req, res) => {
+  const username = req.params.username;
+  const sqlSelect = "SELECT * FROM store WHERE id_user = ?";
+
+  db.query(sqlSelect, username, (err, result) => {
+    if (err) {
+      res.send({ error: "Error get store data!" });
+    } else {
+      res.send(result);
+    }
+  });
+});
+
 // Client Get Categories
 app.get("/api/client/getcategory", (req, res) => {
   const sqlSelect = "SELECT * FROM category";
@@ -487,6 +501,20 @@ app.get("/api/client/getuserproduct/:username", (req, res) => {
   });
 });
 
+// Get Products by category Client
+app.get("/api/client/productsbycategory/:id", (req, res) => {
+  const catId = req.params.id;
+  const sqlSelect = "SELECT * FROM product WHERE id_category = ?";
+
+  db.query(sqlSelect, catId, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
 // Get Detail Product
 app.get("/api/client/detailproduct/:id", (req, res) => {
   const idProduct = req.params.id;
@@ -596,6 +624,34 @@ app.get("/api/client/products", (req, res) => {
       res.send({ error: err });
     } else {
       res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Get all products by category
+app.get("/api/client/getproductbycategory/:category", (req, res) => {
+  const category = req.params.category;
+  const sqlSelectCategory = "SELECT id_category FROM category WHERE name = ?";
+  const sqlSelectProducts =
+    "SELECT * FROM product WHERE id_category = ? ORDER BY RAND() LIMIT 10";
+  let id_category = "";
+
+  db.query(sqlSelectCategory, category, (err, result) => {
+    if (err) {
+      res.send({ error: "Error find category id", err });
+    } else {
+      id_category = result[0].id_category;
+      if (id_category === "") {
+        console.log("Category id is empty");
+      } else {
+        db.query(sqlSelectProducts, id_category, (err, resultProducts) => {
+          if (err) {
+            res.send({ error: "error get products", err });
+          } else {
+            res.send({ success: "success", resultProducts });
+          }
+        });
+      }
     }
   });
 });
