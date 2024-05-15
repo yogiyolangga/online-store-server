@@ -10,6 +10,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const path = require("path");
+const util = require("util");
 
 const db = mysql.createPool({
   host: "localhost",
@@ -502,17 +503,43 @@ app.get("/api/client/getuserproduct/:username", (req, res) => {
 });
 
 // Get Products by category Client
-app.get("/api/client/productsbycategory/:id", (req, res) => {
+const query = util.promisify(db.query).bind(db);
+app.get("/api/client/productsbycategory/:id", async (req, res) => {
   const catId = req.params.id;
   const sqlSelect = "SELECT * FROM product WHERE id_category = ?";
+  const sqlSelectCateGoryName =
+    "SELECT name FROM category WHERE id_category = ?";
 
-  db.query(sqlSelect, catId, (err, result) => {
-    if (err) {
-      res.send({ error: err });
-    } else {
-      res.send({ success: "Success", result });
-    }
-  });
+  try {
+    const resultCatName = await query(sqlSelectCateGoryName, catId);
+    const categoryName = resultCatName[0].name;
+
+    const result = await query(sqlSelect, catId);
+
+    res.send({ success: "Success", result, categoryName });
+  } catch (err) {
+    console.log(err);
+    res.send({ error: err });
+  }
+});
+
+// Search Products by name
+app.get("/api/client/products/search", async (req, res) => {
+  const productName = req.query.name;
+
+  if (!productName) {
+    return res.send({ error: "Product name is required" });
+  }
+
+  const sqlSearch = "SELECT * FROM product WHERE name LIKE ?";
+  const searchValue = `%${productName}%`;
+
+  try {
+    const result = await query(sqlSearch, [searchValue]);
+    res.send({ success: "Success", result });
+  } catch (err) {
+    res.send(err);
+  }
 });
 
 // Get Detail Product
