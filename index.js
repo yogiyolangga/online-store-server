@@ -802,6 +802,8 @@ app.post("/api/client/orders", (req, res) => {
     totalPayment,
   ];
 
+  console.log(valuesOrders);
+
   // Check for existing pending order
   db.query(checkPendingOrder, user_id, (err, resultPending) => {
     if (resultPending.length > 0) {
@@ -861,7 +863,24 @@ app.get("/api/client/buyer/orders/:username", (req, res) => {
   const status = req.query.status;
 
   const sqlSelect =
-    "SELECT o.order_id, o.user_id, o.status, oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, oi.price, p.id_product, p.img, p.name, s.id_user AS store_owner, s.name AS store_name FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product JOIN store s ON p.id_user = s.id_user WHERE o.user_id = ? AND o.status = ? ORDER BY o.order_id DESC";
+    "SELECT o.order_id, o.user_id, o.status, oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, oi.price, p.id_product, p.img, p.name, p.discount, s.id_user AS store_owner, s.name AS store_name FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product JOIN store s ON p.id_user = s.id_user WHERE o.user_id = ? AND o.status = ? ORDER BY o.order_id DESC";
+
+  db.query(sqlSelect, [username, status], (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Seller Get Total Row Data Pending Order
+app.get("/api/client/seller/:username/:status", (req, res) => {
+  const username = req.params.username;
+  const status = req.params.status;
+
+  const sqlSelect =
+    "SELECT COUNT(*) AS total_rows FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product WHERE p.id_user = ? AND o.status = ?";
 
   db.query(sqlSelect, [username, status], (err, result) => {
     if (err) {
