@@ -802,8 +802,6 @@ app.post("/api/client/orders", (req, res) => {
     totalPayment,
   ];
 
-  console.log(valuesOrders);
-
   // Check for existing pending order
   db.query(checkPendingOrder, user_id, (err, resultPending) => {
     if (resultPending.length > 0) {
@@ -815,7 +813,7 @@ app.post("/api/client/orders", (req, res) => {
         } else {
           const order_id = result.insertId;
 
-          const sqlInsertOrderItems = `INSERT INTO order_items (order_id, product_id, quantity, additional_info, price) VALUES (?,?,?,?,?)`;
+          const sqlInsertOrderItems = `INSERT INTO order_items (order_id, product_id, quantity, additional_info, price, discount) VALUES (?,?,?,?,?,?)`;
 
           items.forEach((item) => {
             const itemValues = [
@@ -824,6 +822,7 @@ app.post("/api/client/orders", (req, res) => {
               item.quantity,
               item.additional_info,
               item.price,
+              item.discount,
             ];
             db.query(sqlInsertOrderItems, itemValues, (itemErr, itemResult) => {
               if (itemErr) {
@@ -863,7 +862,7 @@ app.get("/api/client/buyer/orders/:username", (req, res) => {
   const status = req.query.status;
 
   const sqlSelect =
-    "SELECT o.order_id, o.user_id, o.status, oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, oi.price, p.id_product, p.img, p.name, p.discount, s.id_user AS store_owner, s.name AS store_name FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product JOIN store s ON p.id_user = s.id_user WHERE o.user_id = ? AND o.status = ? ORDER BY o.order_id DESC";
+    "SELECT o.order_id, o.user_id, o.status, oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, oi.price, p.id_product, p.img, p.name, p.discount, s.id_user AS store_owner, s.name AS store_name FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product JOIN store s ON p.id_user = s.id_user WHERE o.user_id = ? AND oi.status = ? ORDER BY o.order_id DESC";
 
   db.query(sqlSelect, [username, status], (err, result) => {
     if (err) {
@@ -874,19 +873,99 @@ app.get("/api/client/buyer/orders/:username", (req, res) => {
   });
 });
 
-// Seller Get Total Row Data Pending Order
+// Seller Get Total Row Data Pending Paid Request Order
 app.get("/api/client/seller/:username/:status", (req, res) => {
   const username = req.params.username;
   const status = req.params.status;
 
   const sqlSelect =
-    "SELECT COUNT(*) AS total_rows FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product WHERE p.id_user = ? AND o.status = ?";
+    "SELECT COUNT(*) AS total_rows FROM order_items oi JOIN product p ON oi.product_id = p.id_product WHERE p.id_user = ? AND oi.status = ?";
 
   db.query(sqlSelect, [username, status], (err, result) => {
     if (err) {
       res.send({ error: err });
     } else {
       res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Seller get Data Pending Paid Request Order
+app.get("/api/client/seller/:username", (req, res) => {
+  const username = req.params.username;
+  const sqlSelect =
+    "SELECT o.order_id, o.shipping_address, o.additional_info, oi.order_item_id, oi.quantity, oi.additional_info AS product_info, p.name, p.img FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product WHERE p.id_user = ? AND oi.status = 'request' ORDER BY o.order_id DESC";
+
+  db.query(sqlSelect, username, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Seller get Data Shipping Order
+app.get("/api/client/sellershipping/:username", (req, res) => {
+  const username = req.params.username;
+  const sqlSelect =
+    "SELECT o.order_id, o.shipping_address, o.additional_info, oi.order_item_id, oi.quantity, oi.additional_info AS product_info, p.name, p.img FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product WHERE p.id_user = ? AND oi.status = 'shipping' ORDER BY o.order_id DESC";
+
+  db.query(sqlSelect, username, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Seller get Data Complete Order
+app.get("/api/client/sellercomplete/:username", (req, res) => {
+  const username = req.params.username;
+  const sqlSelect =
+    "SELECT o.order_id, o.shipping_address, o.additional_info, oi.order_item_id, oi.quantity, oi.additional_info AS product_info, p.name, p.img FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product WHERE p.id_user = ? AND oi.status = 'completed' ORDER BY o.order_id DESC";
+
+  db.query(sqlSelect, username, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Post Data Seller Shipping Order
+app.post("/api/seller/shipping", (req, res) => {
+  const order_id = req.body.order_id;
+  const order_item_id = req.body.order_item_id;
+  const carrier = req.body.carrier;
+  const tracking_number = req.body.resi;
+  const address = req.body.address;
+  const sqlInsert =
+    "INSERT INTO shipping (order_id, carrier, tracking_number, shipping_address) VALUES (?,?,?,?)";
+  const sqlUpdate =
+    "UPDATE order_items SET status = 'shipping' WHERE order_item_id = ?";
+  const values = [order_id, carrier, tracking_number, address];
+
+  if (carrier === "" || order_id === "") {
+    res.send({ error: "Please input the field!" });
+    return;
+  }
+
+  db.query(sqlUpdate, order_item_id, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      db.query(sqlInsert, values, (err, result) => {
+        if (err) {
+          res.send({ error: "Error Input data!" });
+        } else {
+          res.send({
+            success: "Thank you, Just wait your data has been Checking!",
+          });
+        }
+      });
     }
   });
 });
@@ -896,7 +975,7 @@ app.get("/api/client/buyer/payment/:username", (req, res) => {
   const username = req.params.username;
 
   const sqlSelect =
-    "SELECT * FROM orders WHERE user_id = ? AND status = 'pending' ORDER BY order_id DESC";
+    "SELECT o.*, b.name FROM orders o JOIN bank b ON o.bank_number = b.number WHERE o.user_id = ? AND o.status = 'pending' ORDER BY o.order_id DESC";
 
   db.query(sqlSelect, username, (err, result) => {
     if (err) {
@@ -1032,6 +1111,19 @@ app.post("/api/admin/login", (req, res) => {
   });
 });
 
+// Get admin data
+app.get("/api/admin/:username", (req, res) => {
+  const username = req.params.username;
+  const sqlSelect = "SELECT full_name FROM super_admin WHERE username = ?";
+  db.query(sqlSelect, username, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
 // Add Category
 const storageIconCategory = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -1084,3 +1176,81 @@ app.post(
     });
   }
 );
+
+// Add Bank list for payment thirdparty
+app.post("/api/admin/bank", (req, res) => {
+  const bank = req.body.bank;
+  const name = req.body.name;
+  const number = req.body.number;
+  const sqlInsert = "INSERT INTO bank (bank, name, number) VALUES (?,?,?)";
+
+  db.query(sqlInsert, [bank, name, number], (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success!" });
+    }
+  });
+});
+
+// Get Bank Data
+app.get("/api/admin/bank", (req, res) => {
+  const sqlGetData = "SELECT * FROM bank";
+  db.query(sqlGetData, (err, result) => {
+    if (err) {
+      console.log(err);
+    } else [res.send({ success: "Success", result })];
+  });
+});
+
+// Delete Bank
+app.delete("/api/admin/bank/:id", (req, res) => {
+  const id = req.params.id;
+  const sqlDelete = "DELETE FROM bank WHERE id = ?";
+
+  db.query(sqlDelete, id, (err, result) => {
+    if (err) {
+      console.log(err);
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success" });
+    }
+  });
+});
+
+// Get Check Payment
+app.get("/api/admin/orders/check", (req, res) => {
+  const sqlSelect = "SELECT * FROM orders WHERE confirm_payment = 'check'";
+  db.query(sqlSelect, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Get Waiting for Payment
+app.get("/api/admin/orders/pending", (req, res) => {
+  const sqlSelect = "SELECT * FROM orders WHERE status = 'pending'";
+  db.query(sqlSelect, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Get package, shipping, and complete Orders
+app.get("/api/admin/orders/packaged/:status", (req, res) => {
+  const status = req.params.status;
+  const sqlSelect = "SELECT * FROM order_items WHERE status = ?";
+  db.query(sqlSelect, status, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
