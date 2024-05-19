@@ -864,13 +864,26 @@ app.get("/api/client/buyer/orders/:username", (req, res) => {
   const sqlSelect =
     "SELECT o.order_id, o.user_id, o.status, oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, oi.price, p.id_product, p.img, p.name, p.discount, s.id_user AS store_owner, s.name AS store_name FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product JOIN store s ON p.id_user = s.id_user WHERE o.user_id = ? AND oi.status = ? ORDER BY o.order_id DESC";
 
-  db.query(sqlSelect, [username, status], (err, result) => {
-    if (err) {
-      res.send({ error: err });
-    } else {
-      res.send({ success: "Success", result });
-    }
-  });
+  const sqlSelectWithShipping =
+    "SELECT o.order_id, o.user_id, o.status, oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, oi.price, p.id_product, p.img, p.name, p.discount, s.id_user AS store_owner, s.name AS store_name, sp.carrier, sp.tracking_number FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product JOIN store s ON p.id_user = s.id_user JOIN shipping sp ON oi.order_id = sp.order_id WHERE o.user_id = ? AND oi.status = ? ORDER BY o.order_id DESC";
+
+  if (status === "shipping") {
+    db.query(sqlSelectWithShipping, [username, status], (err, result) => {
+      if (err) {
+        res.send({ error: err });
+      } else {
+        res.send({ success: "Success", result });
+      }
+    });
+  } else {
+    db.query(sqlSelect, [username, status], (err, result) => {
+      if (err) {
+        res.send({ error: err });
+      } else {
+        res.send({ success: "Success", result });
+      }
+    });
+  }
 });
 
 // Seller Get Total Row Data Pending Paid Request Order
@@ -1194,12 +1207,14 @@ app.post("/api/admin/bank", (req, res) => {
 });
 
 // Get Bank Data
-app.get("/api/admin/bank", (req, res) => {
+app.get("/api/admissn/bank", (req, res) => {
   const sqlGetData = "SELECT * FROM bank";
   db.query(sqlGetData, (err, result) => {
     if (err) {
       console.log(err);
-    } else [res.send({ success: "Success", result })];
+    } else {
+      res.send({ success: "Success", result });
+    }
   });
 });
 
@@ -1247,6 +1262,80 @@ app.get("/api/admin/orders/packaged/:status", (req, res) => {
   const status = req.params.status;
   const sqlSelect = "SELECT * FROM order_items WHERE status = ?";
   db.query(sqlSelect, status, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Get Data Payment Confirm
+app.get("/admin/orderpay", (req, res) => {
+  const sqlSelect = "SELECT * FROM orders WHERE confirm_payment = 'check'";
+  db.query(sqlSelect, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Approve Payment Order
+app.put("/admin/confirmpay/:id", (req, res) => {
+  const id = req.params.id;
+  const sqlUpdateOrders =
+    "UPDATE orders SET status = 'paid', confirm_payment = 'confirm' WHERE order_id = ?";
+  const sqlUpdateOrderItems =
+    "UPDATE order_items SET status = 'request' WHERE order_id = ?";
+
+  db.query(sqlUpdateOrders, id, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      db.query(sqlUpdateOrderItems, id, (err, resultItem) => {
+        if (err) {
+          res.send({ error: err });
+        } else {
+          res.send({ success: "Success", result, resultItem });
+        }
+      });
+    }
+  });
+});
+
+// Admin Check Order on Packaging
+app.get("/admin/orderpack", (req, res) => {
+  const sqlSelect =
+    "SELECT oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, p.id_user AS seller, p.name, p.img FROM order_items oi JOIN product p ON oi.product_id = p.id_product  WHERE oi.status = 'request'";
+  db.query(sqlSelect, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Admin Check Order on Shipping
+app.get("/admin/ordership", (req, res) => {
+  const sqlSelect =
+    "SELECT oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, p.id_user AS seller, p.name, p.img, sp.carrier, sp.tracking_number FROM order_items oi JOIN product p ON oi.product_id = p.id_product JOIN shipping sp ON oi.order_id = sp.order_id WHERE oi.status = 'shipping'";
+  db.query(sqlSelect, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Admin Check Order Finished
+app.get("/admin/orderdone", (req, res) => {
+  const sqlSelect =
+    "SELECT oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, p.id_user AS seller, p.name, p.img, sp.carrier, sp.tracking_number FROM order_items oi JOIN product p ON oi.product_id = p.id_product JOIN shipping sp ON oi.order_id = sp.order_id WHERE oi.status = 'completed'";
+  db.query(sqlSelect, (err, result) => {
     if (err) {
       res.send({ error: err });
     } else {
