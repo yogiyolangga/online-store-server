@@ -506,7 +506,8 @@ app.get("/api/client/getuserproduct/:username", (req, res) => {
 const query = util.promisify(db.query).bind(db);
 app.get("/api/client/productsbycategory/:id", async (req, res) => {
   const catId = req.params.id;
-  const sqlSelect = "SELECT * FROM product WHERE id_category = ?";
+  const sqlSelect =
+    "SELECT p.*, AVG(c.rating) AS average_rating, IFNULL(s.total_sold, 0) AS total_sold FROM product p LEFT JOIN comments c ON p.id_product = c.id_product LEFT JOIN (SELECT oi.product_id, COUNT(oi.order_item_id) AS total_sold FROM order_items oi GROUP BY oi.product_id) s ON p.id_product = s.product_id WHERE id_category = ? GROUP BY p.id_product ORDER BY RAND() LIMIT 10";
   const sqlSelectCateGoryName =
     "SELECT name FROM category WHERE id_category = ?";
 
@@ -644,7 +645,7 @@ app.put("/api/client/deletestatus/:id", (req, res) => {
 // Get All random* Available Products
 app.get("/api/client/products", (req, res) => {
   const sqlSelect =
-    "SELECT * FROM product WHERE status = 'available' ORDER BY RAND() LIMIT 10";
+    "SELECT p.*, AVG(c.rating) AS average_rating, IFNULL(s.total_sold, 0) AS total_sold FROM product p LEFT JOIN comments c ON p.id_product = c.id_product LEFT JOIN (SELECT oi.product_id, COUNT(oi.order_item_id) AS total_sold FROM order_items oi GROUP BY oi.product_id) s ON p.id_product = s.product_id WHERE status = 'available' GROUP BY p.id_product ORDER BY RAND() LIMIT 10";
 
   db.query(sqlSelect, (err, result) => {
     if (err) {
@@ -660,7 +661,7 @@ app.get("/api/client/getproductbycategory/:category", (req, res) => {
   const category = req.params.category;
   const sqlSelectCategory = "SELECT id_category FROM category WHERE name = ?";
   const sqlSelectProducts =
-    "SELECT * FROM product WHERE id_category = ? ORDER BY RAND() LIMIT 10";
+    "SELECT p.*, AVG(c.rating) AS average_rating, IFNULL(s.total_sold, 0) AS total_sold FROM product p LEFT JOIN comments c ON p.id_product = c.id_product LEFT JOIN (SELECT oi.product_id, COUNT(oi.order_item_id) AS total_sold FROM order_items oi GROUP BY oi.product_id) s ON p.id_product = s.product_id WHERE id_category = ? GROUP BY p.id_product ORDER BY RAND() LIMIT 10";
   let id_category = "";
 
   db.query(sqlSelectCategory, category, (err, result) => {
@@ -687,7 +688,8 @@ app.get("/api/client/getproductbycategory/:category", (req, res) => {
 app.get("/api/client/getproductdetail/:id", (req, res) => {
   const pid = req.params.id;
 
-  const sqlSelect = "SELECT * FROM product WHERE id_product = ?";
+  const sqlSelect =
+    "SELECT p.*, AVG(c.rating) AS average_rating, IFNULL(s.total_sold, 0) AS total_sold FROM product p LEFT JOIN comments c ON p.id_product = c.id_product LEFT JOIN (SELECT oi.product_id, COUNT(oi.order_item_id) AS total_sold FROM order_items oi GROUP BY oi.product_id) s ON p.id_product = s.product_id WHERE p.id_product = ? GROUP BY p.id_product";
 
   db.query(sqlSelect, [pid], (err, result) => {
     // Perubahan di sini: pid dibungkus dalam array
@@ -862,10 +864,10 @@ app.get("/api/client/buyer/orders/:username", (req, res) => {
   const status = req.query.status;
 
   const sqlSelect =
-    "SELECT o.order_id, o.user_id, o.status, oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, oi.price, p.id_product, p.img, p.name, p.discount, s.id_user AS store_owner, s.name AS store_name FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product JOIN store s ON p.id_user = s.id_user WHERE o.user_id = ? AND oi.status = ? ORDER BY o.order_id DESC";
+    "SELECT o.order_id, o.user_id, o.status, oi.order_item_id, oi.status AS status_oi, oi.product_id, oi.quantity, oi.additional_info, oi.price, p.id_product, p.img, p.name, p.discount, s.id_user AS store_owner, s.name AS store_name FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product JOIN store s ON p.id_user = s.id_user WHERE o.user_id = ? AND oi.status = ? ORDER BY o.order_id DESC";
 
   const sqlSelectWithShipping =
-    "SELECT o.order_id, o.user_id, o.status, oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, oi.price, p.id_product, p.img, p.name, p.discount, s.id_user AS store_owner, s.name AS store_name, sp.carrier, sp.tracking_number FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product JOIN store s ON p.id_user = s.id_user JOIN shipping sp ON oi.order_id = sp.order_id WHERE o.user_id = ? AND oi.status = ? ORDER BY o.order_id DESC";
+    "SELECT o.order_id, o.user_id, o.status, oi.order_item_id, oi.status AS status_oi, oi.product_id, oi.quantity, oi.additional_info, oi.price, p.id_product, p.img, p.name, p.discount, s.id_user AS store_owner, s.name AS store_name, sp.carrier, sp.tracking_number FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product JOIN store s ON p.id_user = s.id_user JOIN shipping sp ON oi.order_id = sp.order_id WHERE o.user_id = ? AND oi.status = ? ORDER BY o.order_id DESC";
 
   if (status === "shipping") {
     db.query(sqlSelectWithShipping, [username, status], (err, result) => {
@@ -884,6 +886,21 @@ app.get("/api/client/buyer/orders/:username", (req, res) => {
       }
     });
   }
+});
+
+// Buyer Accept Order Already Arrived
+app.put("/api/client/acceptorder/:id", (req, res) => {
+  const id = req.params.id;
+  const sqlUpdate =
+    "UPDATE order_items SET status = 'completed' WHERE order_item_id = ?";
+
+  db.query(sqlUpdate, id, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Thank you !" });
+    }
+  });
 });
 
 // Seller Get Total Row Data Pending Paid Request Order
@@ -1023,6 +1040,33 @@ app.get("/api/admin/categories", (req, res) => {
       res.send({ error: err });
     } else {
       res.send({ success: "Success", result });
+    }
+  });
+});
+
+app.post("/api/client/rating", (req, res) => {
+  const rating = req.body.rating;
+  const comment = req.body.comment;
+  const username = req.body.username;
+  const idProductRate = req.body.idProductRate;
+  const idOrderItemRate = req.body.idOrderItemRate;
+  const sqlUpdateOrderItems =
+    "UPDATE order_items SET status = 'history' WHERE order_item_id = ?";
+  const sqlInsert =
+    "INSERT INTO comments (id_product, id_user, comment, rating) VALUES (?,?,?,?)";
+  const values = [idProductRate, username, comment, rating];
+
+  db.query(sqlInsert, values, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      db.query(sqlUpdateOrderItems, idOrderItemRate, (err, result) => {
+        if (err) {
+          res.send({ error: err });
+        } else {
+          res.send({ success: "Thank you for your rating!" });
+        }
+      });
     }
   });
 });
