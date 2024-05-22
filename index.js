@@ -867,7 +867,7 @@ app.get("/api/client/buyer/orders/:username", (req, res) => {
     "SELECT o.order_id, o.user_id, o.status, oi.order_item_id, oi.status AS status_oi, oi.product_id, oi.quantity, oi.additional_info, oi.price, p.id_product, p.img, p.name, p.discount, s.id_user AS store_owner, s.name AS store_name FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product JOIN store s ON p.id_user = s.id_user WHERE o.user_id = ? AND oi.status = ? ORDER BY o.order_id DESC";
 
   const sqlSelectWithShipping =
-    "SELECT o.order_id, o.user_id, o.status, oi.order_item_id, oi.status AS status_oi, oi.product_id, oi.quantity, oi.additional_info, oi.price, p.id_product, p.img, p.name, p.discount, s.id_user AS store_owner, s.name AS store_name, sp.carrier, sp.tracking_number FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product JOIN store s ON p.id_user = s.id_user JOIN shipping sp ON oi.order_id = sp.order_id WHERE o.user_id = ? AND oi.status = ? ORDER BY o.order_id DESC";
+    "SELECT o.order_id, o.user_id, o.status, oi.order_item_id, oi.status AS status_oi, oi.product_id, oi.quantity, oi.additional_info, oi.price, p.id_product, p.img, p.name, p.discount, s.id_user AS store_owner, s.name AS store_name, sp.carrier, sp.tracking_number FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN product p ON oi.product_id = p.id_product JOIN store s ON p.id_user = s.id_user JOIN shipping sp ON oi.order_item_id = sp.order_item_id WHERE o.user_id = ? AND oi.status = ? ORDER BY o.order_id DESC";
 
   if (status === "shipping") {
     db.query(sqlSelectWithShipping, [username, status], (err, result) => {
@@ -973,10 +973,10 @@ app.post("/api/seller/shipping", (req, res) => {
   const tracking_number = req.body.resi;
   const address = req.body.address;
   const sqlInsert =
-    "INSERT INTO shipping (order_id, carrier, tracking_number, shipping_address) VALUES (?,?,?,?)";
+    "INSERT INTO shipping (order_item_id, carrier, tracking_number, shipping_address) VALUES (?,?,?,?)";
   const sqlUpdate =
     "UPDATE order_items SET status = 'shipping' WHERE order_item_id = ?";
-  const values = [order_id, carrier, tracking_number, address];
+  const values = [order_item_id, carrier, tracking_number, address];
 
   if (carrier === "" || order_id === "") {
     res.send({ error: "Please input the field!" });
@@ -1352,7 +1352,7 @@ app.put("/admin/confirmpay/:id", (req, res) => {
 // Admin Check Order on Packaging
 app.get("/admin/orderpack", (req, res) => {
   const sqlSelect =
-    "SELECT oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, p.id_user AS seller, p.name, p.img FROM order_items oi JOIN product p ON oi.product_id = p.id_product  WHERE oi.status = 'request'";
+    "SELECT oi.order_item_id, oi.order_id, oi.product_id, oi.quantity, oi.additional_info, p.id_user AS seller, p.name, p.img FROM order_items oi JOIN product p ON oi.product_id = p.id_product  WHERE oi.status = 'request'";
   db.query(sqlSelect, (err, result) => {
     if (err) {
       res.send({ error: err });
@@ -1365,7 +1365,7 @@ app.get("/admin/orderpack", (req, res) => {
 // Admin Check Order on Shipping
 app.get("/admin/ordership", (req, res) => {
   const sqlSelect =
-    "SELECT oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, p.id_user AS seller, p.name, p.img, sp.carrier, sp.tracking_number FROM order_items oi JOIN product p ON oi.product_id = p.id_product JOIN shipping sp ON oi.order_id = sp.order_id WHERE oi.status = 'shipping'";
+    "SELECT oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, oi.order_id, p.id_user AS seller, p.name, p.img, sp.carrier, sp.tracking_number FROM order_items oi JOIN product p ON oi.product_id = p.id_product JOIN shipping sp ON oi.order_item_id = sp.order_item_id WHERE oi.status = 'shipping'";
   db.query(sqlSelect, (err, result) => {
     if (err) {
       res.send({ error: err });
@@ -1378,8 +1378,25 @@ app.get("/admin/ordership", (req, res) => {
 // Admin Check Order Finished
 app.get("/admin/orderdone", (req, res) => {
   const sqlSelect =
-    "SELECT oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, p.id_user AS seller, p.name, p.img, sp.carrier, sp.tracking_number FROM order_items oi JOIN product p ON oi.product_id = p.id_product JOIN shipping sp ON oi.order_id = sp.order_id WHERE oi.status = 'completed'";
+    "SELECT oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, p.id_user AS seller, p.name, p.img, sp.carrier, sp.tracking_number FROM order_items oi JOIN product p ON oi.product_id = p.id_product JOIN shipping sp ON oi.order_item_id = sp.order_item_id WHERE oi.status = 'completed'";
   db.query(sqlSelect, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Admin get Order Detail
+app.get("/admin/order/details/:product/:orderitem/:order", (req, res) => {
+  const idProduct = req.params.product;
+  const idOrderItem = req.params.orderitem;
+  const idOrder = req.params.order;
+  const sqlSelect =
+    "SELECT oi.quantity, oi.additional_info, oi.status, oi.price, p.name, p.img, p.id_user AS seller, p.discount, o.shipping_address, o.order_date, o.payment_method, o.bank_number, o.user_id AS buyer, o.total_price, s.carrier, s.tracking_number, s.shipped_date FROM order_items oi JOIN product p ON oi.product_id = p.id_product JOIN orders o ON oi.order_id = o.order_id LEFT JOIN shipping s ON oi.order_item_id = s.order_item_id WHERE oi.order_item_id = ? AND oi.product_id = ? AND oi.order_id = ?";
+
+  db.query(sqlSelect, [idOrderItem, idProduct, idOrder], (err, result) => {
     if (err) {
       res.send({ error: err });
     } else {
