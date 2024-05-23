@@ -1378,7 +1378,7 @@ app.get("/admin/ordership", (req, res) => {
 // Admin Check Order Finished
 app.get("/admin/orderdone", (req, res) => {
   const sqlSelect =
-    "SELECT oi.order_item_id, oi.product_id, oi.quantity, oi.additional_info, p.id_user AS seller, p.name, p.img, sp.carrier, sp.tracking_number FROM order_items oi JOIN product p ON oi.product_id = p.id_product JOIN shipping sp ON oi.order_item_id = sp.order_item_id WHERE oi.status = 'completed'";
+    "SELECT oi.order_item_id, oi.product_id, oi.quantity, oi.order_id, oi.additional_info, p.id_user AS seller, p.name, p.img, sp.carrier, sp.tracking_number FROM order_items oi JOIN product p ON oi.product_id = p.id_product JOIN shipping sp ON oi.order_item_id = sp.order_item_id WHERE oi.status = 'completed'";
   db.query(sqlSelect, (err, result) => {
     if (err) {
       res.send({ error: err });
@@ -1399,6 +1399,23 @@ app.get("/admin/order/details/:product/:orderitem/:order", (req, res) => {
   db.query(sqlSelect, [idOrderItem, idProduct, idOrder], (err, result) => {
     if (err) {
       res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Admin Search by Username Client
+app.get("/admin/search/:username", (req, res) => {
+  const username = req.params.username;
+  const sqlSelect =
+    "select u.fullname, u.username, u.number, u.email, u.gender, u.birthday, u.address, u.join_date, str.name AS store_name FROM user u LEFT JOIN store str ON u.username = str.id_user WHERE u.username = ?";
+
+  db.query(sqlSelect, username, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else if (result.length < 1) {
+      res.send({ notFound: `username "${username}" not found` });
     } else {
       res.send({ success: "Success", result });
     }
