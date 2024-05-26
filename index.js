@@ -59,7 +59,7 @@ app.listen(port, () => {
 });
 
 app.get("/", (req, res) => {
-  res.send("RESTAPI!");
+  res.send("RESTAPI ONLINE SHOP!");
 });
 
 // Register Client
@@ -1416,6 +1416,51 @@ app.get("/admin/search/:username", (req, res) => {
       res.send({ error: err });
     } else if (result.length < 1) {
       res.send({ notFound: `username "${username}" not found` });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Admin Add Banner
+app.post("/admin/banner", (req, res) => {
+  const { url, link, title } = req.body;
+  const sqlInsert =
+    "INSERT INTO baner (url_image, link, title) VALUES (?, ?, ?)";
+
+  if (url === "" || link === "" || title === "") {
+    res.send({ error: "Please fill all fields" });
+    return;
+  }
+
+  db.query(sqlInsert, [url, link, title], (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Admin get Banner
+app.get("/admin/banner", (req, res) => {
+  const sqlSelect = "SELECT * FROM baner";
+  db.query(sqlSelect, (err, result) => {
+    if (err) {
+      res.send({ error: err });
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
+// Admin Delete banner
+app.delete("/admin/banner/:id", (req, res) => {
+  const id = req.params.id;
+  const sqlDelete = "DELETE FROM baner WHERE id_baner = ?";
+  db.query(sqlDelete, id, (err, result) => {
+    if (err) {
+      res.send({ error: err });
     } else {
       res.send({ success: "Success", result });
     }
