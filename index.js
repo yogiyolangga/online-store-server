@@ -507,7 +507,7 @@ const query = util.promisify(db.query).bind(db);
 app.get("/api/client/productsbycategory/:id", async (req, res) => {
   const catId = req.params.id;
   const sqlSelect =
-    "SELECT p.*, AVG(c.rating) AS average_rating, IFNULL(s.total_sold, 0) AS total_sold FROM product p LEFT JOIN comments c ON p.id_product = c.id_product LEFT JOIN (SELECT oi.product_id, COUNT(oi.order_item_id) AS total_sold FROM order_items oi GROUP BY oi.product_id) s ON p.id_product = s.product_id WHERE id_category = ? GROUP BY p.id_product ORDER BY RAND() LIMIT 10";
+    "SELECT p.*, AVG(c.rating) AS average_rating, IFNULL(s.total_sold, 0) AS total_sold FROM product p LEFT JOIN comments c ON p.id_product = c.id_product LEFT JOIN (SELECT oi.product_id, COUNT(oi.order_item_id) AS total_sold FROM order_items oi GROUP BY oi.product_id) s ON p.id_product = s.product_id WHERE id_category = ? GROUP BY p.id_product ORDER BY RAND()";
   const sqlSelectCateGoryName =
     "SELECT name FROM category WHERE id_category = ?";
 
@@ -645,7 +645,7 @@ app.put("/api/client/deletestatus/:id", (req, res) => {
 // Get All random* Available Products
 app.get("/api/client/products", (req, res) => {
   const sqlSelect =
-    "SELECT p.*, AVG(c.rating) AS average_rating, IFNULL(s.total_sold, 0) AS total_sold FROM product p LEFT JOIN comments c ON p.id_product = c.id_product LEFT JOIN (SELECT oi.product_id, COUNT(oi.order_item_id) AS total_sold FROM order_items oi GROUP BY oi.product_id) s ON p.id_product = s.product_id WHERE status = 'available' GROUP BY p.id_product ORDER BY RAND() LIMIT 10";
+    "SELECT p.*, AVG(c.rating) AS average_rating, IFNULL(s.total_sold, 0) AS total_sold FROM product p LEFT JOIN comments c ON p.id_product = c.id_product LEFT JOIN (SELECT oi.product_id, COUNT(oi.order_item_id) AS total_sold FROM order_items oi GROUP BY oi.product_id) s ON p.id_product = s.product_id WHERE status = 'available' GROUP BY p.id_product ORDER BY RAND()";
 
   db.query(sqlSelect, (err, result) => {
     if (err) {
