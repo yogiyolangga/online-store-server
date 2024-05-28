@@ -706,14 +706,13 @@ app.post("/api/client/addcart", (req, res) => {
   const idProduct = req.body.idProduct;
   const userLogin = req.body.userLogin;
   const quantity = req.body.quantity;
-  const today = req.body.today;
   const addInfo = req.body.addInfo;
   const status = "active";
 
   const sqlInsert =
-    "INSERT INTO cart (id_user, id_product, quantity, added_at, additional_info, status) VALUES (?,?,?,?,?,?)";
+    "INSERT INTO cart (id_user, id_product, quantity, additional_info, status) VALUES (?,?,?,?,?)";
 
-  const values = [userLogin, idProduct, quantity, today, addInfo, status];
+  const values = [userLogin, idProduct, quantity, addInfo, status];
 
   db.query(sqlInsert, values, (err, result) => {
     if (err) {
