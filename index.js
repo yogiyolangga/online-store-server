@@ -6,7 +6,7 @@ const cors = require("cors");
 const mysql = require("mysql");
 const cookieParser = require("cookie-parser");
 const session = require("express-session");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const path = require("path");
@@ -1071,6 +1071,18 @@ app.post("/api/client/rating", (req, res) => {
   });
 });
 
+// Get Bank Data Client Checkout process
+app.get("/api/client/bankpayment", (req, res) => {
+  const sqlGetData = "SELECT * FROM bank";
+  db.query(sqlGetData, (err, result) => {
+    if (err) {
+      console.log(err);
+    } else {
+      res.send({ success: "Success", result });
+    }
+  });
+});
+
 // =============================== Admin API ==========================
 // Create Admin App
 app.post("/api/admin/create", async (req, res) => {
@@ -1250,8 +1262,8 @@ app.post("/api/admin/bank", (req, res) => {
   });
 });
 
-// Get Bank Data
-app.get("/api/admissn/bank", (req, res) => {
+// Get Bank Data Admin
+app.get("/api/adminget/bank", (req, res) => {
   const sqlGetData = "SELECT * FROM bank";
   db.query(sqlGetData, (err, result) => {
     if (err) {
