@@ -430,7 +430,7 @@ app.post("/api/client/addproduct", upload.single("image"), (req, res) => {
   const status = "available";
   const rating = 0;
 
-  const sqlSelect = "SELECT * FROM product";
+  const sqlSelect = "SHOW TABLE STATUS LIKE 'product'";
 
   const sqlInsert =
     "INSERT INTO product (id_product, id_user, id_category, name, description, price, stock, img, status, rating, discount) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
@@ -440,33 +440,8 @@ app.post("/api/client/addproduct", upload.single("image"), (req, res) => {
   db.query(sqlSelect, (err, result) => {
     if (err) {
       console.log({ "Error select data product": err });
-    } else if (result.length > 0) {
-      idProduct = "PRD" + (result.length + 1);
-      db.query(
-        sqlInsert,
-        [
-          idProduct,
-          idUser,
-          idCategory,
-          name,
-          description,
-          price,
-          stock,
-          imagePath,
-          status,
-          rating,
-          discount,
-        ],
-        (err, result) => {
-          if (err) {
-            console.log(err);
-          } else {
-            res.send({ success: "Success!", result });
-          }
-        }
-      );
     } else {
-      idProduct = "PRD1";
+      idProduct = "PRD" + (result[0].Rows + 1);
       db.query(
         sqlInsert,
         [
@@ -484,9 +459,9 @@ app.post("/api/client/addproduct", upload.single("image"), (req, res) => {
         ],
         (err, result) => {
           if (err) {
-            console.log(err);
+            res.send({ error: "error here" + err });
           } else {
-            res.send({ success: "Success!", result });
+            res.send({ success: "Success!" });
           }
         }
       );
