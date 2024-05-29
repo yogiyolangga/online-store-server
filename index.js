@@ -328,21 +328,29 @@ app.post("/api/client/createstore", (req, res) => {
   const username = req.body.username;
   const storeName = req.body.storeName;
   const description = req.body.description;
-  const category = req.body.category;
+  const address = req.body.address;
+  const phone = req.body.phone;
+  const email = req.body.email;
 
   const sqlInsert =
-    "INSERT INTO store (id_user, name, description, category) VALUES (?,?,?,?)";
+    "INSERT INTO store (id_user, name, description, address, phone, email) VALUES (?,?,?,?,?,?)";
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   if (storeName === "") {
     res.send({ error: "Please input your Store name!" });
   } else if (description === "") {
     res.send({ error: "Please add description store!" });
-  } else if (category === "") {
-    res.send({ error: "Please select category store!" });
+  } else if (address === "") {
+    res.send({ error: "Please Input Your Store Address!" });
+  } else if (phone === "") {
+    res.send({ error: "Please Input Your Store Phone Number!" });
+  } else if (email === "" || !emailRegex.test(email)) {
+    res.send({ error: "Please Input Your Store Valid Email!" });
   } else {
     db.query(
       sqlInsert,
-      [username, storeName, description, category],
+      [username, storeName, description, address, phone, email],
       (err, result) => {
         if (err) {
           res.send({ error: err });
